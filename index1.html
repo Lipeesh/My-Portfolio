@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lipeesh Acharya — AI Engineer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Sora:wght@300;400;600;700;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --neon: #00f0ff;
+            --neon2: #7f5af0;
+            --neon3: #ff2d78;
+            --bg: #020409;
+            --panel: rgba(0, 240, 255, 0.04);
+            --border: rgba(0, 240, 255, 0.18);
+            --text: #c8eaf0;
+            --muted: rgba(200, 234, 240, 0.45);
+        }
+
+        html {
+            scroll-behavior: auto
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden
+        }
+
+        #canvas-wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 0
+        }
+
+        #canvas-wrap canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important
+        }
+
+        #canvas-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 0, 0, .06) 3px, rgba(0, 0, 0, .06) 4px);
+            pointer-events: none;
+            z-index: 2
+        }
+
+        #noise {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.025;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 200px 200px
+        }
+
+        .hud {
+            position: fixed;
+            width: 56px;
+            height: 56px;
+            pointer-events: none;
+            z-index: 50
+        }
+
+        .hud::before,
+        .hud::after {
+            content: '';
+            position: absolute;
+            background: var(--neon);
+            box-shadow: 0 0 10px var(--neon), 0 0 20px rgba(0, 240, 255, .3)
+        }
+
+        .hud::before {
+            width: 2px;
+            height: 22px;
+            top: 0;
+            left: 0
+        }
+
+        .hud::after {
+            width: 22px;
+            height: 2px;
+            top: 0;
+            left: 0
+        }
+
+        .hud-tl {
+            top: 20px;
+            left: 20px
+        }
+
+        .hud-tr {
+            top: 20px;
+            right: 20px;
+            transform: scaleX(-1)
+        }
+
+        .hud-bl {
+            bottom: 20px;
+            left: 20px;
+            transform: scaleY(-1)
+        }
+
+        .hud-br {
+            bottom: 20px;
+            right: 20px;
+            transform: scale(-1)
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 40px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(90deg, rgba(0, 240, 255, .06) 0%, transparent 100%);
+            backdrop-filter: blur(12px)
+        }
+
+        .nav-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1.1rem;
+            letter-spacing: .2em;
+            color: var(--neon);
+            text-shadow: 0 0 18px var(--neon), 0 0 40px rgba(0, 240, 255, .3)
+        }
+
+        .nav-logo span {
+            color: var(--neon2)
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none
+        }
+
+        .nav-links a {
+            font-size: .65rem;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: rgba(0, 240, 255, .45);
+            text-decoration: none;
+            cursor: pointer;
+            transition: color .25s, text-shadow .25s
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--neon);
+            text-shadow: 0 0 10px var(--neon)
+        }
+
+        #fps-counter {
+            font-size: .65rem;
+            color: rgba(0, 240, 255, .35);
+            letter-spacing: .1em
+        }
+
+        #sdots {
+            position: fixed;
+            right: 28px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 14px
+        }
+
+        .sdot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: rgba(0, 240, 255, .2);
+            cursor: pointer;
+            transition: all .4s cubic-bezier(.34, 1.56, .64, 1)
+        }
+
+        .sdot.active {
+            background: var(--neon);
+            box-shadow: 0 0 12px var(--neon);
+            height: 22px;
+            border-radius: 3px
+        }
+
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            width: 0%;
+            background: linear-gradient(90deg, var(--neon), var(--neon2), var(--neon));
+            box-shadow: 0 0 10px var(--neon);
+            z-index: 200;
+            pointer-events: none;
+            transition: width .08s linear
+        }
+
+        #statusbar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 28px;
+            z-index: 100;
+            background: rgba(2, 4, 9, .75);
+            border: 1px solid var(--border);
+            padding: 10px 28px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity .6s
+        }
+
+        #statusbar.visible {
+            opacity: 1
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px
+        }
+
+        .stat-label {
+            font-size: .55rem;
+            letter-spacing: .18em;
+            color: rgba(0, 240, 255, .4);
+            text-transform: uppercase
+        }
+
+        .stat-value {
+            font-size: .78rem;
+            color: var(--neon);
+            text-shadow: 0 0 8px var(--neon)
+        }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            transition: opacity .8s ease
+        }
+
+        #loader.fade {
+            opacity: 0;
+            pointer-events: none
+        }
+
+        .loader-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 240, 255, .15);
+            border-top-color: var(--neon);
+            box-shadow: 0 0 20px rgba(0, 240, 255, .3);
+            animation: spin 1.2s linear infinite;
+            margin-bottom: 8px
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .loader-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: .3em;
+            color: var(--neon);
+            text-shadow: 0 0 20px var(--neon)
+        }
+
+        .prog-wrap {
+            width: 280px;
+            height: 2px;
+            background: rgba(0, 240, 255, .1);
+            overflow: hidden
+        }
+
+        .prog-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--neon);
+            box-shadow: 0 0 12px var(--neon);
+            transition: width .2s
+        }
+
+        .loader-sub {
+            font-size: .6rem;
+            letter-spacing: .22em;
+            color: rgba(0, 240, 255, .4);
+            text-transform: uppercase
+        }
+
+        #scroll-root {
+            position: relative;
+            z-index: 10;
+            height: 600vh;
+            pointer-events: none
+        }
+
+        .section-ui {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none
+        }
+
+        .glass-panel {
+            background: rgba(0, 240, 255, .03);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px)
+        }
+
+        /* HERO */
+        .hero-content {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0 24px;
+            pointer-events: none
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 18px;
+            border: 1px solid rgba(0, 240, 255, .25);
+            font-size: .6rem;
+            letter-spacing: .28em;
+            text-transform: uppercase;
+            color: var(--neon);
+            margin-bottom: 24px;
+            background: rgba(0, 240, 255, .06)
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--neon);
+            box-shadow: 0 0 8px var(--neon);
+            animation: blink 2s ease-in-out infinite
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .2
+            }
+        }
+
+        .hero-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(40px, 8vw, 96px);
+            font-weight: 900;
+            letter-spacing: -.02em;
+            line-height: .95;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(0, 240, 255, .4), 0 0 80px rgba(0, 240, 255, .15);
+            margin-bottom: 10px
+        }
+
+        .hero-name em {
+            font-style: normal;
+            background: linear-gradient(135deg, var(--neon), var(--neon2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text
+        }
+
+        .hero-role {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(10px, 1.5vw, 15px);
+            font-weight: 400;
+            letter-spacing: .28em;
+            color: rgba(0, 240, 255, .6);
+            text-transform: uppercase;
+            margin-bottom: 12px
+        }
+
+        .hero-tagline {
+            font-size: .7rem;
+            letter-spacing: .18em;
+            color: rgba(200, 234, 240, .3);
+            text-transform: uppercase;
+            margin-bottom: 52px
+        }
+
+        .hero-btns {
+            display: flex;
+            gap: 14px;
+            pointer-events: all;
+            justify-content: center
+        }
+
+        .btn-neon {
+            padding: 12px 32px;
+            border: 1px solid var(--neon);
+            background: rgba(0, 240, 255, .06);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .7rem;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: var(--neon);
+            cursor: pointer;
+            transition: all .25s;
+            box-shadow: 0 0 20px rgba(0, 240, 255, .15)
+        }
+
+        .btn-neon:hover {
+            background: rgba(0, 240, 255, .14);
+            box-shadow: 0 0 40px rgba(0, 240, 255, .35);
+            transform: translateY(-2px)
+        }
+
+        .btn-neon2 {
+            border-color: var(--neon2);
+            color: var(--neon2);
+            box-shadow: 0 0 20px rgba(127, 90, 240, .15);
+            background: rgba(127, 90, 240, .06)
+        }
+
+        .btn-neon2:hover {
+            background: rgba(127, 90, 240, .14);
+            box-shadow: 0 0 40px rgba(127, 90, 240, .35)
+        }
+
+        .scroll-hint {
+            position: absolute;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none
+        }
+
+        .scroll-hint span {
+            font-size: .55rem;
+            letter-spacing: .22em;
+            color: rgba(0, 240, 255, .25);
+            text-transform: uppercase
+        }
+
+        .scroll-line {
+            width: 1px;
+            height: 44px;
+            background: linear-gradient(to bottom, var(--neon), transparent);
+            animation: scrollDown 2.2s ease-in-out infinite
+        }
+
+        @keyframes scrollDown {
+            0% {
+                transform: scaleY(0);
+                transform-origin: top;
+                opacity: 0
+            }
+
+            40% {
+                transform: scaleY(1);
+                transform-origin: top;
+                opacity: 1
+            }
+
+            60% {
+                transform: scaleY(1);
+                transform-origin: bottom;
+                opacity: 1
+            }
+
+            100% {
+                transform: scaleY(0);
+                transform-origin: bottom;
+                opacity: 0
+            }
+        }
+
+        /* ABOUT */
+        .about-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 52px;
+            align-items: center;
+            width: 100%;
+            max-width: 1060px;
+            padding: 0 64px;
+            pointer-events: none
+        }
+
+        .section-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: .6rem;
+            letter-spacing: .28em;
+            text-transform: uppercase;
+            color: var(--neon);
+            margin-bottom: 16px
+        }
+
+        .section-eyebrow::before {
+            content: '//';
+            color: var(--neon2)
+        }
+
+        .section-heading {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(22px, 3.2vw, 40px);
+            font-weight: 700;
+            letter-spacing: -.01em;
+            line-height: 1.15;
+            margin-bottom: 18px;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(0, 240, 255, .25)
+        }
+
+        .section-heading em {
+            font-style: normal;
+            background: linear-gradient(135deg, var(--neon), var(--neon2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text
+        }
+
+        .about-bio {
+            font-size: .72rem;
+            line-height: 1.85;
+            color: var(--muted);
+            margin-bottom: 28px;
+            letter-spacing: .04em
+        }
+
+        .about-stats {
+            display: flex;
+            gap: 28px
+        }
+
+        .stat-block .num {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.7rem;
+            font-weight: 900;
+            color: var(--neon);
+            text-shadow: 0 0 20px var(--neon);
+            letter-spacing: -.02em
+        }
+
+        .stat-block .lbl {
+            font-size: .52rem;
+            letter-spacing: .18em;
+            color: rgba(0, 240, 255, .4);
+            text-transform: uppercase
+        }
+
+        .about-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: all
+        }
+
+        /* ═══════════════════════════════════════════════
+       SPOTLIGHT CARD BASE
+    ═══════════════════════════════════════════════ */
+        .spotlight-card {
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            will-change: transform;
+            transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(1);
+            transition:
+                transform 0.08s ease-out,
+                border-color 0.35s ease,
+                box-shadow 0.35s ease;
+        }
+
+        /* Aurora spotlight overlay — tracks mouse */
+        .spotlight-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%),
+                    rgba(0, 240, 255, 0.13) 0%,
+                    rgba(127, 90, 240, 0.07) 30%,
+                    transparent 65%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+            z-index: 1;
+            border-radius: inherit;
+        }
+
+        .spotlight-card:hover::after {
+            opacity: 1
+        }
+
+        /* Inner content sits above spotlight */
+        .spotlight-card>* {
+            position: relative;
+            z-index: 2
+        }
+
+        /* Focus / dim siblings */
+        .spotlight-group:has(.spotlight-card:hover) .spotlight-card:not(:hover) {
+            opacity: 0.42;
+            filter: brightness(0.6) saturate(0.55);
+            transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(0.97);
+            transition:
+                opacity 0.4s ease,
+                filter 0.4s ease,
+                transform 0.4s ease,
+                border-color 0.35s ease,
+                box-shadow 0.35s ease;
+        }
+
+        .spotlight-group .spotlight-card {
+            transition:
+                opacity 0.4s ease,
+                filter 0.4s ease,
+                transform 0.08s ease-out,
+                border-color 0.35s ease,
+                box-shadow 0.35s ease;
+        }
+
+        /* ─── ACARD (About) ─── */
+        .acard {
+            padding: 18px 22px;
+            cursor: default;
+        }
+
+        .acard:hover {
+            border-color: rgba(0, 240, 255, .5) !important;
+            box-shadow:
+                0 0 0 1px rgba(0, 240, 255, .15),
+                0 8px 40px rgba(0, 240, 255, .18),
+                inset 0 0 20px rgba(0, 240, 255, .05);
+            transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.025) !important;
+        }
+
+        .acard-icon {
+            font-size: 1.1rem;
+            margin-bottom: 8px
+        }
+
+        .acard h4 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .65rem;
+            letter-spacing: .12em;
+            margin-bottom: 4px;
+            color: var(--neon)
+        }
+
+        .acard p {
+            font-size: .62rem;
+            color: var(--muted);
+            line-height: 1.7;
+            letter-spacing: .03em
+        }
+
+        /* ─── SKILLS ─── */
+        .skills-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 860px;
+            padding: 0 52px;
+            pointer-events: none
+        }
+
+        .skills-header {
+            text-align: center;
+            margin-bottom: 44px
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            pointer-events: all
+        }
+
+        .skill-item {
+            padding: 15px 17px;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            cursor: default;
+        }
+
+        .skill-item:hover {
+            border-color: var(--neon) !important;
+            box-shadow:
+                0 0 0 1px rgba(0, 240, 255, .2),
+                0 8px 32px rgba(0, 240, 255, .18),
+                inset 0 0 15px rgba(0, 240, 255, .05);
+            transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.04) !important;
+        }
+
+        .skill-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .skill-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .58rem;
+            letter-spacing: .1em;
+            flex: 1;
+            text-transform: uppercase
+        }
+
+        .skill-bar-wrap {
+            flex: 1;
+            height: 1px;
+            background: rgba(0, 240, 255, .1);
+            overflow: hidden
+        }
+
+        .skill-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon), var(--neon2));
+            transition: width 1.2s cubic-bezier(.4, 0, .2, 1)
+        }
+
+        /* ─── PROJECTS ─── */
+        .projects-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            width: 100%;
+            max-width: 1060px;
+            padding: 0 64px;
+            pointer-events: none
+        }
+
+        .projects-header {
+            text-align: right;
+            margin-bottom: 36px;
+            width: 100%
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            width: 100%;
+            pointer-events: all
+        }
+
+        .pcard {
+            padding: 22px 24px;
+            cursor: pointer;
+        }
+
+        /* Per-card accent aurora colors */
+        .pcard:nth-child(1)::after {
+            background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(0, 240, 255, .15) 0%, rgba(127, 90, 240, .07) 35%, transparent 65%)
+        }
+
+        .pcard:nth-child(2)::after {
+            background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(127, 90, 240, .16) 0%, rgba(0, 240, 255, .07) 35%, transparent 65%)
+        }
+
+        .pcard:nth-child(3)::after {
+            background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 45, 120, .13) 0%, rgba(127, 90, 240, .07) 35%, transparent 65%)
+        }
+
+        .pcard:nth-child(4)::after {
+            background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(0, 240, 255, .14) 0%, rgba(255, 45, 120, .07) 35%, transparent 65%)
+        }
+
+        .pcard:hover {
+            border-color: rgba(0, 240, 255, .55) !important;
+            transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-6px) scale(1.01) !important;
+            box-shadow:
+                0 0 0 1px rgba(0, 240, 255, .18),
+                0 24px 60px rgba(0, 0, 0, .5),
+                0 0 50px rgba(0, 240, 255, .15);
+        }
+
+        .pnum {
+            font-size: .52rem;
+            letter-spacing: .25em;
+            color: var(--neon);
+            text-transform: uppercase;
+            margin-bottom: 10px
+        }
+
+        .ptitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .75rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            margin-bottom: 7px;
+            color: #fff
+        }
+
+        .pdesc {
+            font-size: .62rem;
+            color: var(--muted);
+            line-height: 1.7;
+            letter-spacing: .03em;
+            margin-bottom: 12px
+        }
+
+        .ptags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 12px
+        }
+
+        .ptag {
+            padding: 3px 8px;
+            font-size: .52rem;
+            letter-spacing: .08em;
+            text-transform: uppercase
+        }
+
+        .ptag-c {
+            background: rgba(0, 240, 255, .1);
+            border: 1px solid rgba(0, 240, 255, .2);
+            color: var(--neon)
+        }
+
+        .ptag-v {
+            background: rgba(127, 90, 240, .1);
+            border: 1px solid rgba(127, 90, 240, .2);
+            color: var(--neon2)
+        }
+
+        .ptag-p {
+            background: rgba(255, 45, 120, .1);
+            border: 1px solid rgba(255, 45, 120, .2);
+            color: var(--neon3)
+        }
+
+        .plink {
+            font-size: .58rem;
+            letter-spacing: .12em;
+            color: var(--neon);
+            text-decoration: none;
+            text-transform: uppercase;
+            transition: all .2s
+        }
+
+        .plink:hover {
+            text-shadow: 0 0 10px var(--neon)
+        }
+
+        /* ─── CONTACT ─── */
+        .contact-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            pointer-events: none;
+            padding: 0 24px
+        }
+
+        .contact-heading {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(26px, 5.5vw, 68px);
+            font-weight: 900;
+            letter-spacing: -.01em;
+            line-height: .95;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(0, 240, 255, .35), 0 0 80px rgba(0, 240, 255, .12);
+            margin-bottom: 16px
+        }
+
+        .contact-heading em {
+            font-style: normal;
+            background: linear-gradient(135deg, var(--neon), var(--neon2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text
+        }
+
+        .contact-sub {
+            font-size: .7rem;
+            letter-spacing: .1em;
+            color: var(--muted);
+            max-width: 420px;
+            line-height: 1.8;
+            margin-bottom: 18px
+        }
+
+        .contact-email {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .72rem;
+            letter-spacing: .12em;
+            color: var(--neon);
+            text-shadow: 0 0 12px var(--neon);
+            text-decoration: none;
+            margin-bottom: 40px;
+            pointer-events: all;
+            transition: all .2s
+        }
+
+        .contact-email:hover {
+            text-shadow: 0 0 25px var(--neon)
+        }
+
+        .contact-links {
+            display: flex;
+            gap: 10px;
+            pointer-events: all;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 44px
+        }
+
+        .clink {
+            padding: 11px 22px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: .6rem;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--text);
+            text-decoration: none;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            backdrop-filter: blur(12px);
+            transition: all .3s
+        }
+
+        .clink:hover {
+            border-color: var(--neon);
+            color: var(--neon);
+            box-shadow: 0 0 30px rgba(0, 240, 255, .15);
+            transform: translateY(-3px)
+        }
+
+        .clink-resume {
+            border-color: rgba(127, 90, 240, .4);
+            color: var(--neon2)
+        }
+
+        .clink-resume:hover {
+            border-color: var(--neon2);
+            box-shadow: 0 0 30px rgba(127, 90, 240, .2)
+        }
+
+        .footer-sig {
+            font-size: .48rem;
+            letter-spacing: .22em;
+            color: rgba(0, 240, 255, .15);
+            text-transform: uppercase;
+            margin-top: 24px
+        }
+
+        /* SECTION TRANSITIONS */
+        .section-ui .inner {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity .65s ease, transform .65s ease
+        }
+
+        .section-ui.visible .inner {
+            opacity: 1;
+            transform: translateY(0)
+        }
+
+        @media(max-width:860px) {
+            nav {
+                padding: 14px 20px
+            }
+
+            .nav-links {
+                display: none
+            }
+
+            .about-layout {
+                grid-template-columns: 1fr;
+                padding: 0 20px;
+                gap: 24px
+            }
+
+            .skills-layout,
+            .projects-layout {
+                padding: 0 20px
+            }
+
+            .skills-grid {
+                grid-template-columns: repeat(2, 1fr)
+            }
+
+            .projects-grid {
+                grid-template-columns: 1fr
+            }
+
+            .contact-links {
+                flex-direction: column;
+                align-items: stretch;
+                max-width: 260px
+            }
+
+            #sdots,
+            #statusbar {
+                display: none
+            }
+        }
+
+        /* ═══════════════════════════════════════════════
+       CONTACT LINK SPOTLIGHT GROUP
+    ═══════════════════════════════════════════════ */
+        .clink {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .clink::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 50%),
+                    rgba(0, 240, 255, 0.14) 0%,
+                    transparent 60%);
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .clink:hover::after {
+            opacity: 1
+        }
+
+        .clink>* {
+            position: relative;
+            z-index: 1
+        }
+
+        /* Focus-dim for contact links */
+        .contact-links:has(.clink:hover) .clink:not(:hover) {
+            opacity: 0.45;
+            filter: brightness(0.55) saturate(0.5);
+            transition: opacity 0.35s, filter 0.35s;
+        }
+
+        .contact-links .clink {
+            transform-style: preserve-3d;
+            transition: opacity 0.35s, filter 0.35s, transform 0.08s ease-out, border-color 0.3s, box-shadow 0.3s, color 0.3s;
+        }
+
+        .clink:hover {
+            transform: perspective(600px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="noise"></div>
+    <div id="progress-bar"></div>
+    <div class="hud hud-tl"></div>
+    <div class="hud hud-tr"></div>
+    <div class="hud hud-bl"></div>
+    <div class="hud hud-br"></div>
+
+    <nav>
+        <div class="nav-logo">L<span>A</span>/</div>
+        <ul class="nav-links">
+            <li><a data-s="0">Home</a></li>
+            <li><a data-s="1">About</a></li>
+            <li><a data-s="2">Skills</a></li>
+            <li><a data-s="3">Projects</a></li>
+            <li><a data-s="4">Contact</a></li>
+        </ul>
+        <div id="fps-counter">-- FPS</div>
+    </nav>
+
+    <div id="sdots">
+        <div class="sdot active" data-s="0"></div>
+        <div class="sdot" data-s="1"></div>
+        <div class="sdot" data-s="2"></div>
+        <div class="sdot" data-s="3"></div>
+        <div class="sdot" data-s="4"></div>
+    </div>
+
+    <div id="statusbar">
+        <div class="stat"><span class="stat-label">Scene</span><span class="stat-value" id="stat-scene">HERO</span>
+        </div>
+        <div class="stat"><span class="stat-label">Camera Z</span><span class="stat-value" id="stat-camz">24.0</span>
+        </div>
+        <div class="stat"><span class="stat-label">Models</span><span class="stat-value" id="stat-models">0/5</span>
+        </div>
+        <div class="stat"><span class="stat-label">Status</span><span class="stat-value" id="stat-status">INIT</span>
+        </div>
+    </div>
+
+    <div id="canvas-wrap"></div>
+
+    <div id="loader">
+        <div class="loader-ring"></div>
+        <div class="loader-title">INITIALISING AI SYSTEM</div>
+        <div class="prog-wrap">
+            <div class="prog-bar" id="prog"></div>
+        </div>
+        <div class="loader-sub" id="loader-sub">Booting environment…</div>
+    </div>
+
+    <div id="scroll-root">
+        <!-- HERO -->
+        <div class="section-ui" id="ui-hero">
+            <div class="inner"
+                style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <div class="hero-content">
+                    <div class="hero-badge">AI Engineer · Available For Work</div>
+                    <h1 class="hero-name">Lipeesh<br /><em>Acharya</em></h1>
+                    <p class="hero-role">Artificial Intelligence Engineer</p>
+                    <p class="hero-tagline">Building Intelligent Systems · From Research to Production</p>
+                    <div class="hero-btns">
+                        <button class="btn-neon" onclick="scrollToSection(3)">⬡ View Projects</button>
+                        <button class="btn-neon btn-neon2" onclick="scrollToSection(4)">⬢ Contact Me</button>
+                    </div>
+                </div>
+                <div class="scroll-hint"><span>Scroll to Journey</span>
+                    <div class="scroll-line"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABOUT -->
+        <div class="section-ui" id="ui-about">
+            <div class="inner about-layout">
+                <div>
+                    <div class="section-eyebrow">About Me</div>
+                    <h2 class="section-heading">Architect of<br /><em>Intelligent<br />Systems</em></h2>
+                    <p class="about-bio">AI Engineer specializing in turning cutting-edge research into production-ready
+                        systems.
+                        Passionate about neural architectures, computer vision, and the future of human-AI interfaces.
+                    </p>
+                    <div class="about-stats">
+                        <div class="stat-block">
+                            <div class="num">3+</div>
+                            <div class="lbl">Years AI Dev</div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="num">12+</div>
+                            <div class="lbl">Projects</div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="num">4</div>
+                            <div class="lbl">Publications</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- About cards — spotlight group -->
+                <div class="about-cards spotlight-group">
+                    <div class="glass-panel acard spotlight-card">
+                        <div class="acard-icon">🎓</div>
+                        <h4>Education</h4>
+                        <p>B.Tech CS &amp; AI · Machine Learning · Deep Learning · Computer Vision</p>
+                    </div>
+                    <div class="glass-panel acard spotlight-card">
+                        <div class="acard-icon">⚡</div>
+                        <h4>Experience</h4>
+                        <p>3+ years building production AI · Medical imaging · NLP pipelines · IoT intelligence</p>
+                    </div>
+                    <div class="glass-panel acard spotlight-card">
+                        <div class="acard-icon">🔬</div>
+                        <h4>Research</h4>
+                        <p>Computer Vision · NLP · Ayurvedic AI · IoT + AI Integration</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SKILLS -->
+        <div class="section-ui" id="ui-skills">
+            <div class="inner skills-layout">
+                <div class="skills-header">
+                    <div class="section-eyebrow" style="justify-content:center">Technical Arsenal</div>
+                    <h2 class="section-heading">Skills &amp; <em>Technologies</em></h2>
+                </div>
+                <!-- Skills grid — spotlight group -->
+                <div class="skills-grid spotlight-group" id="skills-grid"></div>
+            </div>
+        </div>
+
+        <!-- PROJECTS -->
+        <div class="section-ui" id="ui-projects">
+            <div class="inner projects-layout">
+                <div class="projects-header">
+                    <div class="section-eyebrow" style="justify-content:flex-end">Portfolio</div>
+                    <h2 class="section-heading">Featured <em>Projects</em></h2>
+                </div>
+                <!-- Projects grid — spotlight group -->
+                <div class="projects-grid spotlight-group">
+                    <div class="glass-panel pcard spotlight-card">
+                        <div class="pnum">01 / PROJECT</div>
+                        <div class="ptitle">Oral Cancer Detection AI</div>
+                        <div class="pdesc">Deep CNN system for clinical-grade oral cancer detection from medical
+                            imagery.</div>
+                        <div class="ptags"><span class="ptag ptag-c">PyTorch</span><span
+                                class="ptag ptag-v">CNN</span><span class="ptag ptag-p">Medical AI</span></div>
+                        <a class="plink" href="#">View on GitHub →</a>
+                    </div>
+                    <div class="glass-panel pcard spotlight-card">
+                        <div class="pnum">02 / PROJECT</div>
+                        <div class="ptitle">IoT Ayurvedic Pulse Diagnosis</div>
+                        <div class="pdesc">Hardware + AI fusion: IoT sensors with ML for traditional Ayurvedic
+                            diagnosis.</div>
+                        <div class="ptags"><span class="ptag ptag-c">IoT</span><span
+                                class="ptag ptag-v">TensorFlow</span><span class="ptag ptag-p">Hardware</span></div>
+                        <a class="plink" href="#">View on GitHub →</a>
+                    </div>
+                    <div class="glass-panel pcard spotlight-card">
+                        <div class="pnum">03 / PROJECT</div>
+                        <div class="ptitle">NLP Chatbot System</div>
+                        <div class="pdesc">Context-aware conversational AI with multi-turn dialogue and RAG knowledge
+                            retrieval.</div>
+                        <div class="ptags"><span class="ptag ptag-c">NLP</span><span class="ptag ptag-v">LLM</span><span
+                                class="ptag ptag-p">RAG</span></div>
+                        <a class="plink" href="#">View on GitHub →</a>
+                    </div>
+                    <div class="glass-panel pcard spotlight-card">
+                        <div class="pnum">04 / PROJECT</div>
+                        <div class="ptitle">Facial Feature Extraction</div>
+                        <div class="pdesc">Real-time facial landmark detection and emotion recognition pipeline.</div>
+                        <div class="ptags"><span class="ptag ptag-c">OpenCV</span><span
+                                class="ptag ptag-v">MediaPipe</span><span class="ptag ptag-p">Vision</span></div>
+                        <a class="plink" href="#">View on GitHub →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTACT -->
+        <div class="section-ui" id="ui-contact">
+            <div class="inner contact-layout">
+                <div class="section-eyebrow" style="justify-content:center">Get In Touch</div>
+                <h2 class="contact-heading">Let's Build<br /><em>Something</em><br />Together</h2>
+                <p class="contact-sub">Open to AI engineering roles, research collaborations, and exciting projects at
+                    the
+                    frontier of intelligence.</p>
+                <a class="contact-email" href="mailto:lipeesh.acharya@email.com">lipeesh.acharya@email.com</a>
+                <!-- Contact links — spotlight group -->
+                <div class="contact-links">
+                    <a class="clink spotlight-card" href="mailto:lipeesh.acharya@email.com">✉ Email</a>
+                    <a class="clink spotlight-card" href="https://github.com" target="_blank">⬡ GitHub</a>
+                    <a class="clink spotlight-card" href="https://linkedin.com" target="_blank">⬢ LinkedIn</a>
+                    <a class="clink clink-resume spotlight-card" href="#">↓ Resume</a>
+                </div>
+                <p class="footer-sig">© 2025 Lipeesh Acharya · AI Engineer · All Rights Reserved</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        /* ═══════════════════════════════════════════════════
+           SPOTLIGHT CARDS ENGINE
+           — Aurora radial glow that follows the cursor
+           — Magnetic 3D perspective tilt on mouse move
+           — Focus-dim handled via CSS :has() + JS fallback
+        ═══════════════════════════════════════════════════ */
+        (function initSpotlight() {
+
+            // Tilt config per card type
+            const TILT_CFG = {
+                acard: { maxTiltX: 10, maxTiltY: 14, perspective: 800 },
+                'skill-item': { maxTiltX: 8, maxTiltY: 10, perspective: 700 },
+                pcard: { maxTiltX: 12, maxTiltY: 16, perspective: 900 },
+                clink: { maxTiltX: 6, maxTiltY: 8, perspective: 600 }
+            };
+
+            function getCardType(el) {
+                if (el.classList.contains('acard')) return 'acard';
+                if (el.classList.contains('skill-item')) return 'skill-item';
+                if (el.classList.contains('pcard')) return 'pcard';
+                if (el.classList.contains('clink')) return 'clink';
+                return 'pcard';
+            }
+
+            // Smooth lerp state per card
+            const cardState = new WeakMap();
+
+            function getState(el) {
+                if (!cardState.has(el)) {
+                    cardState.set(el, {
+                        rx: 0, ry: 0,          // current tilt angles
+                        txRaw: 0, tyRaw: 0,    // raw target
+                        raf: null,
+                        inside: false
+                    });
+                }
+                return cardState.get(el);
+            }
+
+            function lerp(a, b, t) { return a + (b - a) * t }
+
+            function animateCard(el, cfg) {
+                const state = getState(el);
+
+                function tick() {
+                    const LERP_SPEED = 0.14;
+                    state.rx = lerp(state.rx, state.txRaw, LERP_SPEED);
+                    state.ry = lerp(state.ry, state.tyRaw, LERP_SPEED);
+
+                    const baseTransform = el.classList.contains('pcard')
+                        ? `perspective(${cfg.perspective}px) rotateX(${state.rx}deg) rotateY(${state.ry}deg) translateY(-6px) scale(1.01)`
+                        : el.classList.contains('skill-item')
+                            ? `perspective(${cfg.perspective}px) rotateX(${state.rx}deg) rotateY(${state.ry}deg) scale(1.04)`
+                            : el.classList.contains('clink')
+                                ? `perspective(${cfg.perspective}px) rotateX(${state.rx}deg) rotateY(${state.ry}deg) translateY(-3px)`
+                                : `perspective(${cfg.perspective}px) rotateX(${state.rx}deg) rotateY(${state.ry}deg) scale(1.025)`;
+
+                    el.style.transform = baseTransform;
+
+                    // Continue lerping until settled
+                    const settled = Math.abs(state.rx - state.txRaw) < 0.01 && Math.abs(state.ry - state.tyRaw) < 0.01;
+                    if (!settled || state.inside) {
+                        state.raf = requestAnimationFrame(tick);
+                    } else {
+                        state.raf = null;
+                    }
+                }
+
+                if (!state.raf) state.raf = requestAnimationFrame(tick);
+            }
+
+            function onMouseMove(e) {
+                const el = e.currentTarget;
+                const cfg = TILT_CFG[getCardType(el)] || TILT_CFG.pcard;
+                const state = getState(el);
+                const rect = el.getBoundingClientRect();
+
+                // Normalized [-1, 1] position within card
+                const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+
+                // Tilt: rotateX from vertical mouse, rotateY from horizontal
+                state.txRaw = -ny * cfg.maxTiltX;
+                state.tyRaw = nx * cfg.maxTiltY;
+
+                // Aurora spotlight position (percentage for CSS)
+                const pctX = ((e.clientX - rect.left) / rect.width * 100).toFixed(1) + '%';
+                const pctY = ((e.clientY - rect.top) / rect.height * 100).toFixed(1) + '%';
+                el.style.setProperty('--mx', pctX);
+                el.style.setProperty('--my', pctY);
+                // CSS hover var for acard/skill-item
+                el.style.setProperty('--rx', state.txRaw.toFixed(2) + 'deg');
+                el.style.setProperty('--ry', state.tyRaw.toFixed(2) + 'deg');
+
+                state.inside = true;
+                animateCard(el, cfg);
+            }
+
+            function onMouseLeave(e) {
+                const el = e.currentTarget;
+                const cfg = TILT_CFG[getCardType(el)] || TILT_CFG.pcard;
+                const state = getState(el);
+
+                state.txRaw = 0;
+                state.tyRaw = 0;
+                state.inside = false;
+
+                // Ease back to rest
+                function resetTick() {
+                    const RESET_LERP = 0.1;
+                    state.rx = lerp(state.rx, 0, RESET_LERP);
+                    state.ry = lerp(state.ry, 0, RESET_LERP);
+
+                    const resetTransform = `perspective(${cfg.perspective}px) rotateX(${state.rx}deg) rotateY(${state.ry}deg) scale(1)`;
+                    el.style.transform = resetTransform;
+
+                    const settled = Math.abs(state.rx) < 0.005 && Math.abs(state.ry) < 0.005;
+                    if (!settled) {
+                        state.raf = requestAnimationFrame(resetTick);
+                    } else {
+                        state.rx = 0; state.ry = 0;
+                        el.style.transform = '';
+                        el.style.removeProperty('--mx');
+                        el.style.removeProperty('--my');
+                        el.style.removeProperty('--rx');
+                        el.style.removeProperty('--ry');
+                        state.raf = null;
+                    }
+                }
+
+                if (state.raf) cancelAnimationFrame(state.raf);
+                state.raf = requestAnimationFrame(resetTick);
+            }
+
+            function attachSpotlight(el) {
+                el.addEventListener('mousemove', onMouseMove);
+                el.addEventListener('mouseleave', onMouseLeave);
+            }
+
+            // CSS :has() fallback for older browsers — JS-based sibling dim
+            const hasHasSupport = CSS.supports('selector(:has(*))');
+
+            function setupGroupFallback(group) {
+                if (hasHasSupport) return; // CSS handles it
+                const cards = Array.from(group.querySelectorAll('.spotlight-card'));
+                cards.forEach(card => {
+                    card.addEventListener('mouseenter', () => {
+                        cards.forEach(c => {
+                            if (c !== card) {
+                                c.style.opacity = '0.42';
+                                c.style.filter = 'brightness(0.6) saturate(0.55)';
+                            }
+                        });
+                    });
+                    card.addEventListener('mouseleave', () => {
+                        cards.forEach(c => {
+                            c.style.opacity = '';
+                            c.style.filter = '';
+                        });
+                    });
+                });
+            }
+
+            // MutationObserver to catch dynamically inserted skill items
+            function bindAll() {
+                document.querySelectorAll('.spotlight-card').forEach(el => {
+                    if (!el.dataset.spotlightBound) {
+                        attachSpotlight(el);
+                        el.dataset.spotlightBound = '1';
+                    }
+                });
+                document.querySelectorAll('.spotlight-group').forEach(setupGroupFallback);
+            }
+
+            // Initial bind + observe for dynamically added skill cards
+            const observer = new MutationObserver(bindAll);
+            observer.observe(document.getElementById('skills-grid') || document.body, {
+                childList: true, subtree: true
+            });
+
+            // Run after DOM ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindAll);
+            } else {
+                bindAll();
+                // Also bind after a tick (for dynamically rendered skills)
+                setTimeout(bindAll, 400);
+                setTimeout(bindAll, 1200);
+            }
+        })();
+
+        /* ═══════════════════════════════════════════════════
+           ASSET CONFIG  ← Edit paths here only
+        ═══════════════════════════════════════════════════ */
+        const ASSETS = {
+            models: {
+                hero: './public/assets_model/HERO_MODEL.glb',
+                neural: './public/assets_model/NEURAL_network.glb',
+                aicore: './public/assets_model/AI_CORE.glb',
+                skills: './public/assets_model/skills.glb',
+                holo: './public/assets_model/HOLOGRAPHIC_project_card.glb'
+            },
+            images: {
+                heroBg: './public/assets_image/HERObaCKGROUND.png',
+                about: './public/assets_image/ABOUTSECTION.png',
+                project1: './public/assets_image/PROJECTSECTION.png',
+                project2: './public/assets_image/Gemini_Generated_Image_4wmhxj4wmhxj4wmh.png'
+            }
+        };
+
+        const Z = { hero: 20, neural: 10, aicore: 0, skills: -10, holo: -20 };
+
+        (async () => {
+            async function loadScript(src) {
+                return new Promise(r => { const s = document.createElement('script'); s.src = src; s.onload = r; document.head.appendChild(s) });
+            }
+            await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js');
+            await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');
+
+            const wrap = document.getElementById('canvas-wrap');
+            const W = () => wrap.clientWidth, H = () => wrap.clientHeight;
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(W(), H());
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            renderer.shadowMap.enabled = true;
+            wrap.appendChild(renderer.domElement);
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020409);
+            scene.fog = new THREE.FogExp2(0x020409, 0.20);
+
+            const camera = new THREE.PerspectiveCamera(50, W() / H(), 0.1, 300);
+            camera.position.set(0, 0.5, 24);
+
+            scene.add(new THREE.AmbientLight(0x002233, 2.2));
+            const dirL = new THREE.DirectionalLight(0x00f0ff, 3.5); dirL.position.set(5, 8, 5); dirL.castShadow = true; scene.add(dirL);
+            const fillL = new THREE.DirectionalLight(0x7f5af0, 1.5); fillL.position.set(-5, -2, -5); scene.add(fillL);
+            const rimL = new THREE.PointLight(0x00f0ff, 1.5, 60); rimL.position.set(-3, 4, -3); scene.add(rimL);
+            const rimL2 = new THREE.PointLight(0x7f5af0, 1.2, 60); rimL2.position.set(4, -3, 4); scene.add(rimL2);
+
+            const grid = new THREE.GridHelper(120, 60, 0x00f0ff, 0x001018);
+            grid.position.y = -4; grid.material.opacity = 0.15; grid.material.transparent = true; scene.add(grid);
+
+            for (let z = 25; z >= -25; z -= 5) {
+                const m = new THREE.Mesh(
+                    new THREE.TorusGeometry(8, 0.025, 8, 64),
+                    new THREE.MeshBasicMaterial({ color: z === 0 ? 0x7f5af0 : 0x00f0ff, transparent: true, opacity: 0.055 })
+                );
+                m.rotation.x = Math.PI / 2; m.position.z = z; scene.add(m);
+            }
+
+            function mkPts(n, sp, col, sz) {
+                const g = new THREE.BufferGeometry(), p = new Float32Array(n * 3);
+                for (let i = 0; i < n * 3; i++) p[i] = (Math.random() - .5) * sp;
+                g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+                return new THREE.Points(g, new THREE.PointsMaterial({ color: col, size: sz, transparent: true, opacity: 0.55, sizeAttenuation: true }));
+            }
+            const pts1 = mkPts(500, 80, 0x00f0ff, 0.06), pts2 = mkPts(280, 75, 0x7f5af0, 0.05), pts3 = mkPts(160, 70, 0xff2d78, 0.045);
+            scene.add(pts1, pts2, pts3);
+
+            function procHero() {
+                const g = new THREE.Group(); g.position.z = Z.hero;
+                [{ r: 2.4, c: 0x00f0ff, op: 0.55, rx: Math.PI / 6, rz: 0 }, { r: 2.4, c: 0x7f5af0, op: 0.4, rx: Math.PI / 2, rz: 0 }, { r: 2.9, c: 0xff2d78, op: 0.25, rx: 0, rz: Math.PI / 3 }].forEach(d => {
+                    const m = new THREE.Mesh(new THREE.TorusGeometry(d.r, 0.015, 8, 120), new THREE.MeshBasicMaterial({ color: d.c, transparent: true, opacity: d.op }));
+                    m.rotation.x = d.rx; m.rotation.z = d.rz; g.add(m);
+                });
+                const core = new THREE.Mesh(new THREE.SphereGeometry(0.9, 64, 64), new THREE.MeshStandardMaterial({ color: 0x1d4ed8, emissive: 0x00f0ff, emissiveIntensity: 0.85, metalness: 0.9, roughness: 0.1 }));
+                g.add(core);
+                g.add(new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00f0ff, wireframe: true, transparent: true, opacity: 0.18 })));
+                g.add(new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.04, side: THREE.BackSide })));
+                g.userData = { isProc: true, core }; scene.add(g); return g;
+            }
+            function procNeural() {
+                const g = new THREE.Group(); g.position.z = Z.neural;
+                const pts = [], C = [0x00f0ff, 0x7f5af0, 0xff2d78];
+                for (let i = 0; i < 28; i++) {
+                    const p = new THREE.Vector3((Math.random() - .5) * 16, (Math.random() - .5) * 10, (Math.random() - .5) * 7); pts.push(p);
+                    const nm = new THREE.Mesh(new THREE.SphereGeometry(0.09 + (i % 3) * 0.04, 10, 10), new THREE.MeshStandardMaterial({ color: C[i % 3], emissive: C[i % 3], emissiveIntensity: 0.55 }));
+                    nm.position.copy(p); g.add(nm);
+                }
+                for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++)
+                    if (pts[i].distanceTo(pts[j]) < 5.8) { const lg = new THREE.BufferGeometry().setFromPoints([pts[i], pts[j]]); g.add(new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.13 }))); }
+                g.userData = { isProc: true }; scene.add(g); return g;
+            }
+            function procCore() {
+                const g = new THREE.Group(); g.position.z = Z.aicore;
+                const RC = [0x00f0ff, 0x7f5af0, 0xff2d78, 0x00f0ff, 0x7f5af0];
+                [1.4, 1.9, 2.4, 3.0, 3.6].forEach((r, i) => {
+                    const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 8, 100), new THREE.MeshBasicMaterial({ color: RC[i], transparent: true, opacity: 0.42 - i * 0.06 }));
+                    m.rotation.set(i * 0.4, 0, i * 0.55); m.userData.rs = (0.006 - i * 0.0005) * (i % 2 === 0 ? 1 : -1); g.add(m);
+                });
+                const reactor = new THREE.Mesh(new THREE.SphereGeometry(0.65, 64, 64), new THREE.MeshStandardMaterial({ color: 0x0d1b4e, emissive: 0x7f5af0, emissiveIntensity: 1.1, metalness: 1, roughness: 0 }));
+                g.add(reactor); g.userData = { isProc: true, reactor }; scene.add(g); return g;
+            }
+            function procSkills() {
+                const g = new THREE.Group(); g.position.z = Z.skills;
+                const skC = [0x00f0ff, 0x7f5af0, 0xff2d78, 0x00f0ff, 0x7f5af0, 0xff2d78];
+                const skG = [new THREE.OctahedronGeometry(0.5), new THREE.BoxGeometry(0.7, 0.7, 0.7), new THREE.IcosahedronGeometry(0.48), new THREE.TetrahedronGeometry(0.52), new THREE.TorusGeometry(0.38, 0.11, 8, 30), new THREE.ConeGeometry(0.38, 0.75, 8)];
+                for (var si = 0; si < skG.length; si++) {
+                    var sa = (si / skG.length) * Math.PI * 2;
+                    var sm = new THREE.Mesh(skG[si], new THREE.MeshStandardMaterial({ color: skC[si], emissive: skC[si], emissiveIntensity: 0.35, metalness: 0.85, roughness: 0.15 }));
+                    sm.position.set(Math.cos(sa) * 4, Math.sin(sa * 0.7) * 2, Math.sin(sa) * 2);
+                    sm.userData = { oa: sa, os: 0.003 + si * 0.0008 }; g.add(sm);
+                }
+                g.userData = { isProc: true }; scene.add(g); return g;
+            }
+            function procHolo() {
+                const g = new THREE.Group(); g.position.z = Z.holo;
+                const holoPos = [[-3.2, 0, 0], [-1.1, 0.6, -1.8], [1.1, -0.3, -1.8], [3.2, 0.3, 0]];
+                const holoRot = [[0, 0.45, 0], [0, 0.18, 0], [0, -0.18, 0], [0, -0.45, 0]];
+                const holoCol = [0x00f0ff, 0x7f5af0, 0xff2d78, 0x00f0ff];
+                for (var hi = 0; hi < holoPos.length; hi++) {
+                    var hpos = holoPos[hi], hrot = holoRot[hi], hcol = holoCol[hi];
+                    var hp = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.9), new THREE.MeshBasicMaterial({ color: hcol, transparent: true, opacity: 0.06, side: THREE.DoubleSide }));
+                    hp.position.set(hpos[0], hpos[1], hpos[2]); hp.rotation.set(hrot[0], hrot[1], hrot[2]);
+                    var he = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(2.1, 2.9)), new THREE.LineBasicMaterial({ color: hcol, transparent: true, opacity: 0.55 }));
+                    he.position.set(hpos[0], hpos[1], hpos[2]); he.rotation.set(hrot[0], hrot[1], hrot[2]);
+                    g.add(hp, he);
+                }
+                g.userData = { isProc: true }; scene.add(g); return g;
+            }
+
+            const PH = procHero(), PN = procNeural(), PC = procCore(), PS = procSkills(), PHo = procHolo();
+
+            /* Skills UI */
+            const SKILLS = [
+                { name: 'Python', level: 95, color: '#00f0ff' }, { name: 'TensorFlow', level: 88, color: '#7f5af0' },
+                { name: 'PyTorch', level: 85, color: '#ff2d78' }, { name: 'Comp. Vision', level: 90, color: '#00f0ff' },
+                { name: 'NLP / LLMs', level: 82, color: '#7f5af0' }, { name: 'IoT + AI', level: 78, color: '#ff2d78' },
+                { name: 'OpenCV', level: 87, color: '#00f0ff' }, { name: 'MLOps', level: 72, color: '#7f5af0' },
+                { name: 'RAG Systems', level: 80, color: '#ff2d78' }
+            ];
+            const sg = document.getElementById('skills-grid');
+            SKILLS.forEach(s => {
+                sg.innerHTML += `<div class="glass-panel skill-item spotlight-card">
+          <div class="skill-dot" style="background:${s.color};box-shadow:0 0 8px ${s.color}"></div>
+          <span class="skill-name">${s.name}</span>
+          <div class="skill-bar-wrap"><div class="skill-bar-fill" style="width:0%;background:linear-gradient(90deg,${s.color},#7f5af0)" data-level="${s.level}"></div></div>
+        </div>`;
+            });
+
+            // Bind spotlight to newly inserted skill cards
+            setTimeout(() => {
+                document.querySelectorAll('.spotlight-card').forEach(el => {
+                    if (!el.dataset.spotlightBound) {
+                        el.dispatchEvent(new Event('spotlight-init'));
+                    }
+                });
+            }, 100);
+
+            /* Model loading */
+            const mdl = {}, lodr = new THREE.GLTFLoader();
+            let ready = 0;
+            async function chk(url) { try { const r = await fetch(url, { method: 'HEAD' }); const ct = r.headers.get('content-type') || ''; return r.ok && !ct.includes('text/html') } catch { return false } }
+            function applyNeon(s3d) { s3d.traverse(c => { if (c.isMesh) { const ms = Array.isArray(c.material) ? c.material : [c.material]; ms.forEach(m => { if (m.emissive !== undefined) { m.emissive.set(0x00f0ff); m.emissiveIntensity = 0.35 } }) } }) }
+            function onRdy(k) { ready++; document.getElementById('stat-models').textContent = ready + '/5'; if (ready >= 5) { document.getElementById('stat-status').textContent = 'ONLINE'; setTimeout(() => { document.getElementById('loader').classList.add('fade'); document.getElementById('statusbar').classList.add('visible') }, 600) } }
+
+            async function loadMdl(key, url, zPos, scale, cb) {
+                document.getElementById('prog').style.width = (ready / 5 * 80) + '%';
+                document.getElementById('loader-sub').textContent = 'Checking ' + key + '...';
+                const ok = await chk(url);
+                if (!ok) { onRdy(key); return; }
+                lodr.load(url, gltf => {
+                    const r = gltf.scene; applyNeon(r);
+                    const b = new THREE.Box3().setFromObject(r), sz = b.getSize(new THREE.Vector3()), ms = Math.max(sz.x, sz.y, sz.z);
+                    r.scale.setScalar(scale / ms);
+                    const c = b.getCenter(new THREE.Vector3()); r.position.sub(c.multiplyScalar(scale / ms)); r.position.z = zPos;
+                    if (gltf.animations?.length) { const mx = new THREE.AnimationMixer(r); gltf.animations.forEach(cl => mx.clipAction(cl).play()); r.userData.mixer = mx }
+                    scene.add(r); mdl[key] = r; if (cb) cb(r, gltf); onRdy(key);
+                }, xhr => { const p = xhr.total ? (ready / 5 * 80 + xhr.loaded / xhr.total * (80 / 5)) : 0; document.getElementById('prog').style.width = p + '%'; document.getElementById('loader-sub').textContent = 'Loading ' + key + ' ' + (xhr.total ? Math.round(xhr.loaded / xhr.total * 100) + '%' : '') },
+                    err => { console.warn(key, err.message); onRdy(key); });
+            }
+
+            const texL = new THREE.TextureLoader();
+            (async () => {
+                await loadMdl('hero', ASSETS.models.hero, Z.hero, 2.5, r => { scene.remove(PH); chk(ASSETS.images.heroBg).then(ok => { if (!ok) return; texL.load(ASSETS.images.heroBg, t => { const m = new THREE.Mesh(new THREE.PlaneGeometry(22, 14), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.65, depthWrite: false })); m.position.set(0, 0, Z.hero - 8); scene.add(m) }) }) });
+                await loadMdl('neural', ASSETS.models.neural, Z.neural, 2.5, r => { scene.remove(PN); chk(ASSETS.images.about).then(ok => { if (!ok) return; texL.load(ASSETS.images.about, t => { const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 2.5), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.55, side: THREE.DoubleSide })); m.position.set(-4, 1, Z.neural + 2); m.rotation.y = 0.4; scene.add(m) }) }) });
+                await loadMdl('aicore', ASSETS.models.aicore, Z.aicore, 1.8, r => { scene.remove(PC) });
+                await loadMdl('skills', ASSETS.models.skills, Z.skills, 2.5, r => { scene.remove(PS) });
+                await loadMdl('holo', ASSETS.models.holo, Z.holo, 2.2, r => { scene.remove(PHo) });
+            })();
+
+            let scrollY = 0, targetZ = 24, curZ = 24, txn = 0, tyn = 0.5, mx = 0, my = 0, activeSec = 0, lastSec = -1, skillsAnim = false;
+            window.addEventListener('scroll', () => { scrollY = window.scrollY }, { passive: true });
+            window.addEventListener('mousemove', e => { mx = (e.clientX / innerWidth - .5) * 2; my = (e.clientY / innerHeight - .5) * 2 });
+
+            window.scrollToSection = function (i) { const ms = document.body.scrollHeight - innerHeight; window.scrollTo({ top: (i / 4) * ms, behavior: 'smooth' }) };
+            document.querySelectorAll('[data-s]').forEach(el => el.addEventListener('click', () => scrollToSection(+el.dataset.s)));
+
+            const clock = new THREE.Clock(); let fc = 0, lfps = performance.now();
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const dt = clock.getDelta(), t = clock.getElapsedTime();
+                const ms = document.body.scrollHeight - innerHeight;
+                const sp = ms > 0 ? Math.min(scrollY / ms, 1) : 0;
+                targetZ = 24 + ((-22) - 24) * sp;
+                activeSec = Math.round(sp * 4);
+                if (sp > 0.18 && sp < 0.38) { txn = Math.sin(t * 0.7) * 0.8; tyn = 0.5 + Math.cos(t * 0.5) * 0.4 }
+                else if (sp < 0.08) { txn = mx * 0.5; tyn = 0.5 - my * 0.35 }
+                else { txn += (0 - txn) * 0.04; tyn += (0.5 - tyn) * 0.04 }
+                curZ += (targetZ - curZ) * 0.055;
+                camera.position.z += (curZ - camera.position.z) * 0.08;
+                camera.position.x += (txn - camera.position.x) * 0.05;
+                camera.position.y += (tyn - camera.position.y) * 0.05;
+                camera.lookAt(new THREE.Vector3(camera.position.x * 0.3, camera.position.y * 0.3, curZ - 3));
+
+                Object.values(mdl).forEach(m => { if (m?.userData?.mixer) m.userData.mixer.update(dt) });
+                const ho = mdl.hero || PH; if (ho) { ho.rotation.y = t * 0.12; ho.position.y = Math.sin(t * 0.6) * 0.18; if (ho.userData.isProc) { if (ho.children[0]) ho.children[0].rotation.z = t * 0.35; if (ho.children[1]) ho.children[1].rotation.z = -t * 0.22; if (ho.children[2]) { ho.children[2].rotation.x = t * 0.18; ho.children[2].rotation.y = t * 0.12 } if (ho.userData.core) ho.userData.core.material.emissiveIntensity = 0.7 + Math.sin(t * 2.2) * 0.3 } }
+                const no = mdl.neural || PN; if (no) no.rotation.y = t * 0.06;
+                const co = mdl.aicore || PC; if (co) { co.rotation.y -= dt * 0.5; co.rotation.x = Math.sin(t * 0.3) * 0.06; if (co.userData.isProc) { co.children.forEach(ch => { if (ch.userData.rs) { ch.rotation.z += ch.userData.rs; ch.rotation.x += ch.userData.rs * 0.4 } }); if (co.userData.reactor) co.userData.reactor.material.emissiveIntensity = 0.9 + Math.sin(t * 3) * 0.45 } }
+                const so = mdl.skills || PS; if (so) { so.rotation.y += dt * 0.08; so.position.y = Math.sin(t * 0.5) * 0.3; if (so.userData.isProc) so.children.forEach(ch => { if (ch.userData.oa !== undefined) { ch.userData.oa += ch.userData.os; const a = ch.userData.oa, r = 4; ch.position.set(Math.cos(a) * r, Math.sin(a * 0.7) * 1.8 + Math.sin(t + a) * 0.22, Math.sin(a) * r * 0.5); ch.rotation.x += 0.01; ch.rotation.y += 0.012; ch.material.emissiveIntensity = 0.3 + Math.sin(t * 1.5 + a) * 0.18 } }) }
+                const oo = mdl.holo || PHo; if (oo) oo.rotation.y += dt * 0.04;
+                pts1.rotation.y = t * 0.018; pts2.rotation.y = -t * 0.013; pts3.rotation.x = t * 0.009;
+                rimL.position.set(camera.position.x - 3, camera.position.y + 4, camera.position.z - 5);
+                rimL2.position.set(camera.position.x + 4, camera.position.y - 3, camera.position.z - 5);
+
+                if (activeSec !== lastSec) {
+                    lastSec = activeSec;
+                    const UI = ['ui-hero', 'ui-about', 'ui-skills', 'ui-projects', 'ui-contact'];
+                    UI.forEach((id, i) => document.getElementById(id).classList.toggle('visible', i === activeSec));
+                    document.querySelectorAll('.sdot').forEach((d, i) => d.classList.toggle('active', i === activeSec));
+                    document.querySelectorAll('.nav-links a').forEach((a, i) => a.classList.toggle('active', i === activeSec));
+                    const SN = ['HERO', 'NEURAL NET', 'AI CORE', 'SKILLS', 'PROJECTS']; document.getElementById('stat-scene').textContent = SN[activeSec] || 'HERO';
+                    if (activeSec === 2 && !skillsAnim) { skillsAnim = true; document.querySelectorAll('.skill-bar-fill').forEach((el, i) => setTimeout(() => { el.style.width = el.dataset.level + '%' }, 100 + i * 70)) }
+                }
+                document.getElementById('progress-bar').style.width = (sp * 100) + '%';
+                document.getElementById('stat-camz').textContent = camera.position.z.toFixed(1);
+                fc++; const now = performance.now(); if (now - lfps >= 1000) { document.getElementById('fps-counter').textContent = fc + ' FPS'; fc = 0; lfps = now }
+                renderer.render(scene, camera);
+            }
+
+            document.getElementById('ui-hero').classList.add('visible');
+            animate();
+            setTimeout(() => { if (ready < 5) { document.getElementById('loader').classList.add('fade'); document.getElementById('statusbar').classList.add('visible'); document.getElementById('stat-status').textContent = 'LOADING' } }, 2800);
+            window.addEventListener('resize', () => { camera.aspect = W() / H(); camera.updateProjectionMatrix(); renderer.setSize(W(), H()) });
+        })();
+    </script>
+</body>
+
+</html>
